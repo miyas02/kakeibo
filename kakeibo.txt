@@ -1,0 +1,57 @@
+Sub Button1()
+    Dim rakutenCSVPath As String
+    Dim rakutenCSVBook As Workbook
+    Dim importCSVSheet As Worksheet
+    
+    
+    rakutenCSVPath = FileChoose
+    MsgBox "選択されたファイル: " & rakutenCSVPath
+    
+    ' Set importCSVSheet = ThisWorkbook.Sheets(2) ' 必要に応じて変更
+    
+    ' 新しいシートを作成（最後尾に追加）
+    Set newSheet = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
+    newSheet.Name = "CSV取込"
+    
+        ' 一時的にCSVを開く
+    Set rakutenCSVBook = Workbooks.Open(Filename:=rakutenCSVPath)
+    
+        ' データをコピー
+    rakutenCSVBook.Sheets(1).UsedRange.Copy
+    
+    ' 現在のブックのシートに貼り付け
+    newSheet.Range("A1").PasteSpecial xlPasteValues
+    
+        ' CSVブックを閉じる（保存しない）
+    rakutenCSVBook.Close SaveChanges:=False
+
+    Application.CutCopyMode = False
+    Application.ScreenUpdating = True
+    Application.DisplayAlerts = True
+
+    MsgBox "CSVデータの読み込みが完了しました。"
+    
+End Sub
+
+Function FileChoose() As String
+    Dim filePath As String
+    
+    ' ファイル選択ダイアログを表示
+    With Application.FileDialog(msoFileDialogFilePicker)
+        .Title = "ファイルを選択してください"
+        .Filters.Clear
+        .Filters.Add "すべてのファイル", "*.*"
+        .AllowMultiSelect = False
+        
+        If .Show = -1 Then
+            filePath = .SelectedItems(1)
+            FileChoose = filePath
+        Else
+            MsgBox "ファイルの選択がキャンセルされました"
+        End If
+    End With
+End Function
+
+Sub ImportCSV()
+    
+End Sub
