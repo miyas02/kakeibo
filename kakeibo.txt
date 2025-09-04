@@ -1,7 +1,6 @@
 Sub Button1()
     Dim rakutenCSVPath As String
     Dim rakutenCSVBook As Workbook
-    Dim importCSVSheet As Worksheet
     
     
     rakutenCSVPath = FileChoose
@@ -30,10 +29,95 @@ Sub Button1()
     Application.DisplayAlerts = True
 
     MsgBox "CSVデータの読み込みが完了しました。"
-    Dim arr As Variant
-    arr = GetColumnAsArry("B")
+    
+    ' 設定シートの店名で、csv取り込みシートの利用店名を検索し、ヒットした行の利用額を合計して、resultシートに書き込む
+    ' 設定シートのカテゴリをkeyに、店名の配列をvalueにしたdictを作成
+    Dim dict As Object
+    Set dict = GetCategoryDict()
+    
+    Dim resultDict As Object
+    Set resultDict = CreateObject("Scripting.Dictionary")
+    
+    ' newSheetのB列で店名を検索
+    Dim k As Variant
+    Dim i As Long
+    Dim j As Long
+    Dim lastRow As Long
+    Dim col As Collection
+    lastRow = newSheet.Cells(newSheet.Rows.Count, "B").End(xlUp).Row
+    i = 2
+    Dim targetValue As Variant
+    targetValue = newSheet.Cells(i, 2).Value ' TODO targetValue(newSheetの2列目)を配列で取得
+    Dim totalValue As Long
+    totalValue = 0
+    For Each k In dict.Keys
+        
+        Set col = dict(k)
+        For j = 1 To col.Count
+            Debug.Print col(j)
+          If targetValue = col(j) Then
+            Debug.Print newSheet.Cells(i, 7).Value
+            totalValue = totalValue + newSheet.Cells(i, 7).Value
+          End If
+        Next j
+        i = i + 1
+        resultDict.Add k, totalValue
+    Next
+    
+    For Each totalKey In resultDict.Keys
+        ' Debug.Print resultDict(totalKey)
+    Next
+
+    
+    
     MsgBox "test"
 End Sub
+
+Function OutputResult()
+    ' resultシートの作成
+    Dim result As Worksheet
+    Set result = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
+    result.Name = "result"
+    ' resultヘッダーの作成
+    result.Cells(1, 1).Value = "カテゴリ"
+    result.Cells(1, 2).Value = "店名"
+    result.Cells(1, 3).Value = "合計金額"
+    
+    Dim i As Long
+    i = 2 ' resultのヘッダーの次の行
+    Dim k As Variant
+    For Each k In dict.Keys
+        result.Cells(i, 1).Value = k
+        i = i + 1
+    Next
+End Function
+
+Function GetCategoryDict() As Object
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets("家計簿設定シート") ' シート名を指定
+    Dim dict As Object
+    Set dict = CreateObject("Scripting.Dictionary")
+    Dim i As Long
+    Dim lastRow As Long
+    Dim categoryValue As Variant
+    Dim nameValue As Variant
+    lastRow = ws.Cells(ws.Rows.Count, "C").End(xlUp).Row
+    For i = 3 To lastRow
+        
+        categoryValue = ws.Cells(i, "C").Value
+        nameValue = ws.Cells(i, "B").Value
+        ' キーの存在チェック
+        If dict.Exists(categoryValue) Then
+            dict(categoryValue).Add (nameValue)
+        Else
+            Dim col As Collection
+            Set col = New Collection
+            col.Add nameValue
+            dict.Add categoryValue, col
+        End If
+    Next i
+    Set GetCategoryDict = dict
+End Function
 
 Function FileChoose() As String
     Dim filePath As String
@@ -52,24 +136,6 @@ Function FileChoose() As String
             MsgBox "ファイルの選択がキャンセルされました"
         End If
     End With
-End Function
-
-Sub ImportCSV()
-    
-End Sub
-
-Function GetColumnAsArry(column As String)
-    Dim ws As Worksheet
-    Dim lastRow As Long
-    Dim arr As Variant
-    
-    ' 対象シート（例：アクティブシート）
-    Set ws = ThisWorkbook.Sheets("家計簿設定シート")
-    ' column列の最終行を取得
-    lastRow = ws.Cells(ws.Rows.Count, column).End(xlUp).Row
-    ' B1 から B最終行 を配列に格納
-    arr = ws.Range("B1:B" & lastRow).Value
-    GetColumnAsArry = arr
 End Function
 
 Sub PrintCategory()
