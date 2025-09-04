@@ -7,8 +7,6 @@ Sub Button1()
     rakutenCSVPath = FileChoose
     MsgBox "選択されたファイル: " & rakutenCSVPath
     
-    ' Set importCSVSheet = ThisWorkbook.Sheets(2) ' 必要に応じて変更
-    
     ' 新しいシートを作成（最後尾に追加）
     Set newSheet = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
     newSheet.Name = "CSV取込"
@@ -22,6 +20,8 @@ Sub Button1()
     ' 現在のブックのシートに貼り付け
     newSheet.Range("A1").PasteSpecial xlPasteValues
     
+    Application.CutCopyMode = False
+    
         ' CSVブックを閉じる（保存しない）
     rakutenCSVBook.Close SaveChanges:=False
 
@@ -30,7 +30,9 @@ Sub Button1()
     Application.DisplayAlerts = True
 
     MsgBox "CSVデータの読み込みが完了しました。"
-    
+    Dim arr As Variant
+    arr = GetColumnAsArry("B")
+    MsgBox "test"
 End Sub
 
 Function FileChoose() As String
@@ -55,3 +57,59 @@ End Function
 Sub ImportCSV()
     
 End Sub
+
+Function GetColumnAsArry(column As String)
+    Dim ws As Worksheet
+    Dim lastRow As Long
+    Dim arr As Variant
+    
+    ' 対象シート（例：アクティブシート）
+    Set ws = ThisWorkbook.Sheets("家計簿設定シート")
+    ' column列の最終行を取得
+    lastRow = ws.Cells(ws.Rows.Count, column).End(xlUp).Row
+    ' B1 から B最終行 を配列に格納
+    arr = ws.Range("B1:B" & lastRow).Value
+    GetColumnAsArry = arr
+End Function
+
+Sub PrintCategory()
+    Dim wb As Workbook
+    Dim ws As Worksheet
+    Dim lastRow As Long
+    
+    Set ws = ThisWorkbook.Sheets("家計簿設定シート")
+    lastRow = ws.Cells(ws.Rows.Count, "B").End(xlUp).Row
+    Dim targetValue As Variant
+    
+    For i = 3 To lastRow
+        targetValue = ws.Cells(i, "B").Value
+        
+        ' targetValueをD3:H5の範囲で検索し、ヒットした列のヘッダー名を取得
+        Dim categoryValue As Variant
+        categoryValue = GetHeader(targetValue)
+        ws.Cells(i, "C").Value = categoryValue
+        
+    Next i
+End Sub
+
+Function GetHeader(targetValue As Variant)
+    Set ws = ThisWorkbook.Sheets("家計簿設定シート")
+    Dim lastRow As Long
+    lastRow = 30
+    Dim lastColumn As Long
+    lastColumn = ws.Cells(3, ws.Columns.Count).End(xlToLeft).column
+    Dim categoryStartColumn As Long
+    categoryStartColumn = 5
+    Dim cellValue As Variant
+    
+    
+    For i = categoryStartColumn To lastColumn
+        For j = 3 To lastRow
+            cellValue = ws.Cells(j, i).Value
+            If cellValue = targetValue Then
+                GetHeader = ws.Cells(2, i)
+            End If
+        Next j
+    Next i
+End Function
+
