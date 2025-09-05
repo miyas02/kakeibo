@@ -4,9 +4,25 @@ Sub Button1()
     
     
     rakutenCSVPath = FileChoose
-    MsgBox "選択されたファイル: " & rakutenCSVPath
+    
+    Dim oldSheet As Worksheet
+    If SheetExists("CSV取込") Then
+        Set oldSheet = ThisWorkbook.Sheets("CSV取込")
+        Application.DisplayAlerts = False
+        oldSheet.Delete
+        Application.DisplayAlerts = True
+    End If
+    
+    If SheetExists("result") Then
+        Set oldSheet = ThisWorkbook.Sheets("result")
+        Application.DisplayAlerts = False
+        oldSheet.Delete
+        Application.DisplayAlerts = True
+    End If
+    
     
     ' 新しいシートを作成（最後尾に追加）
+    Dim newSheet As Worksheet
     Set newSheet = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
     newSheet.Name = "CSV取込"
     
@@ -27,8 +43,6 @@ Sub Button1()
     Application.CutCopyMode = False
     Application.ScreenUpdating = True
     Application.DisplayAlerts = True
-
-    MsgBox "CSVデータの読み込みが完了しました。"
     
     ' 設定シートの店名で、csv取り込みシートの利用店名を検索し、ヒットした行の利用額を合計して、resultシートに書き込む
     ' 設定シートのカテゴリをkeyに、店名の配列をvalueにしたdictを作成
@@ -38,7 +52,9 @@ Sub Button1()
     Dim resultDict As Object
     Set resultDict = CreateObject("Scripting.Dictionary")
     
-    ' newSheetのB列で店名を検索
+    Dim targetValues As Collection ' CSVデータの店名列(B列)
+    Set targetValues = GetTargetValues(newSheet)
+    
     Dim k As Variant
     Dim i As Long
     Dim j As Long
@@ -46,34 +62,62 @@ Sub Button1()
     Dim col As Collection
     lastRow = newSheet.Cells(newSheet.Rows.Count, "B").End(xlUp).Row
     i = 2
-    Dim targetValue As Variant
-    targetValue = newSheet.Cells(i, 2).Value ' TODO targetValue(newSheetの2列目)を配列で取得
-    Dim totalValue As Long
-    totalValue = 0
-    For Each k In dict.Keys
-        
-        Set col = dict(k)
-        For j = 1 To col.Count
-            Debug.Print col(j)
-          If targetValue = col(j) Then
-            Debug.Print newSheet.Cells(i, 7).Value
-            totalValue = totalValue + newSheet.Cells(i, 7).Value
-          End If
-        Next j
+    
+    Dim amount As Long
+    Dim isExists As Boolean
+    Dim notExistsCol As Collection
+    Set notExistsCol = New Collection
+    For Each targetValue In targetValues
+        isExists = False
+        For Each k In dict.Keys
+            amount = 0
+            Set col = dict(k)
+            For j = 1 To col.Count
+                If InStr(targetValue, col(j)) > 0 Then
+                    ' Debug.Assert col(j) <> "ﾊﾟﾊﾟｽ"
+                    
+                    amount = amount + newSheet.Cells(i, 7).Value
+                    isExists = True
+                End If
+            Next j
+            If resultDict.Exists(k) Then
+                resultDict(k) = resultDict(k) + amount
+
+            Else
+                resultDict.Add k, amount
+            End If
+            
+        Next
+        If isExists = Fase Then
+            notExistsCol.Add targetValue
+        End If
         i = i + 1
-        resultDict.Add k, totalValue
     Next
     
     For Each totalKey In resultDict.Keys
-        ' Debug.Print resultDict(totalKey)
+        Debug.Print totalKey
+        Debug.Print resultDict(totalKey)
     Next
+    
+    Call OutputResult(resultDict, dict)
 
-    
-    
-    MsgBox "test"
 End Sub
 
-Function OutputResult()
+Function GetTargetValues(newSheet As Worksheet) As Collection
+    Dim targetValue As Variant
+    Dim i As Long
+    Dim lastRow As Long
+    lastRow = newSheet.Cells(newSheet.Rows.Count, "B").End(xlUp).Row
+    Dim targetValues As Collection
+    Set targetValues = New Collection
+    For i = 2 To lastRow
+        targetValue = newSheet.Cells(i, 2).Value ' TODO targetValue(newSheetの2列目)を配列で取得
+        targetValues.Add targetValue
+    Next i
+    Set GetTargetValues = targetValues
+End Function
+
+Function OutputResult(resultDict As Object, categoryDict As Object)
     ' resultシートの作成
     Dim result As Worksheet
     Set result = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
@@ -84,10 +128,22 @@ Function OutputResult()
     result.Cells(1, 3).Value = "合計金額"
     
     Dim i As Long
+    Dim col As Collection
+    Set col = New Collection
+    Dim shops As String
+
     i = 2 ' resultのヘッダーの次の行
     Dim k As Variant
-    For Each k In dict.Keys
+    For Each k In resultDict.Keys
+        shops = ""
         result.Cells(i, 1).Value = k
+        result.Cells(i, 2).Value = resultDict(k)
+        Set col = categoryDict(k)
+        
+        For Each e In col
+            shops = shops + e + ", "
+        Next
+        result.Cells(i, 3).Value = shops
         i = i + 1
     Next
 End Function
@@ -177,5 +233,13 @@ Function GetHeader(targetValue As Variant)
             End If
         Next j
     Next i
+End Function
+
+Function SheetExists(sName As String) As Boolean
+    Dim ws As Worksheet
+    On Error Resume Next
+    Set ws = ThisWorkbook.Sheets(sName)
+    On Error GoTo 0
+    SheetExists = Not ws Is Nothing
 End Function
 
